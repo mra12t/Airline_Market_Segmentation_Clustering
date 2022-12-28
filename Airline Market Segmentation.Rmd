@@ -1,0 +1,122 @@
+---
+title: "Airline Market Segmentation"
+output: github_document
+date: "2022-12-26"
+---
+
+### About the Study and the Data Set
+
+Market segmentation is a way to divide a larger target market of customers into smaller groups that are more similar to each other. One common method for doing this is clustering, which is a technique that can automatically identify groups of similar customers based on a set of data. In this case, an airline is using clustering to find groups of customers within their frequent flyer program who are similar to each other. The airline hopes to use this information to design different marketing strategies for each customer segment, such as offering different types of mileage promotions.\
+The AirlinesCluster.csv file contains data on 3,999 members of an airline's frequent flyer program. This data was taken from the textbook "Data Mining for Business Intelligence" by Galit Shmueli, Nitin R. Patel, and Peter C. Bruce
+
+The dataset contained in the AirlinesCluster.csv file includes seven variables that describe the characteristics of the frequent flyer program members. These variables are:
+
+-   Balance: the number of miles that are eligible for award travel.
+
+-   QualMiles: the number of miles that qualify for TopFlight status.
+
+-   BonusMiles: the number of miles earned from non-flight bonus transactions in the past 12 months.
+
+-   BonusTrans: the number of non-flight bonus transactions in the past 12 months.
+
+-   FlightMiles: the number of flight miles traveled in the past 12 months.
+
+-   FlightTrans: the number of flight transactions in the past 12 months.
+
+-   DaysSinceEnroll: the number of days since the customer was enrolled in the frequent flyer program.
+
+### EDA
+
+```{r}
+airlines = read.csv("AirlinesCluster.csv")
+str(airlines)
+```
+
+```{r}
+summary(airlines)
+```
+
+It appears that our variables have a big diversity in their mean values. For instance, BounsMiles and Balance have the highest mean of values between all the variables. While, BonusTrans and FlightTrans have the lowest. Moreover, the different is so big that normalizing the data seems to be a sound thing to begin with, because if we don't the clustering will be dominated and largly affected by the variables with the higher values.
+
+```{r}
+#Normalizing the data
+library(caret)
+preproc = preProcess(airlines)
+airlinesNorm = predict(preproc, airlines)
+```
+
+```{r}
+summary(airlinesNorm)
+```
+
+```{r}
+sd(airlinesNorm$Balance)
+```
+
+We can see that in the new data set we created, airlinesNorm, the mean of all the variables is 0 and the satndard diviation is 1. It is worth nothing that, the variable with the maximum value is FlightMiles and the variable with the minimum is DaysSinceEnroll.
+
+### Hierarchical Clustering
+
+```{r}
+distances = dist(airlinesNorm, method = "euclidean")
+hierClust = hclust(distances, method = "ward.D")
+```
+
+```{r}
+plot(hierClust)
+```
+
+It appears that 5 clusters will be a good choice for this problem.
+
+```{r}
+plot(hierClust)
+rect.hclust(hierClust, k = 5, border = "red")
+```
+
+```{r}
+clusterGroups = cutree(hierClust, k = 5)
+table(clusterGroups)
+```
+
+Let's explore our cluster groups by finding the centroid of each cluster.
+
+```{r}
+library(knitr)
+x = lapply(split(airlines, clusterGroups), colMeans)
+kable(x)
+```
+
+
+* We can observe that for Cluster1, the average of the DaysSinceEnroll values is the highest across all the clusters. However, the QualMiles variable is the lowest across them all as well. Consequently, we can safely assume that the customers in Cluster1 are loyal bu infrequent customers.
+
+* Cluster2 has the largest average values in all three of QualMiles, FlightMiles, and FlightTrans. which indicates that the customers of this cluster have accumulated the largest amount of miles and these are mostly accumulated through flight transactions.
+
+* On the other hand, Cluster3 has the highest mean values of Balance, BonusMiles and BonusTrans, indicating that the customers of this cluster have accumulated large amount of miles, only this time through non-flight transactions.
+
+* Cluster4 has no significant value compared to the other clusters. However, the customers seems to relatively new customers and they're accumulating miles through non-flight transactions.  
+
+* Finally, Cluster5 has relatively new customers who don't use the airlines very often.  
+
+### K-means Clustering
+
+```{r}
+set.seed(123)
+kmcut = kmeans(airlinesNorm, centers = 5, iter.max = 1000)
+```
+
+```{r}
+kable(table(kmcut$cluster))
+```
+
+```{r}
+x = lapply(split(airlines, kmcut$cluster), colMeans)
+kable(x)
+```
+
+
+
+```{r}
+kable(table(kmcut$cluster, clusterGroups))
+```
+
+As we can see above, the cluster groups are not particularly in order. In fact, in clustering order doesn't have any meaning. For example, the k-means cluster1 is most similar to cluster1 of the previous model and kmeans cluster2 is most similar to the 5th one in the previous model, and so on. 
